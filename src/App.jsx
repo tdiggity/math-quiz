@@ -22,22 +22,6 @@ function Pill({ active, onClick, children }) {
   );
 }
 
-function Modal({ open, onClose, title, children }) {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-xl w-[min(700px,95vw)] max-h-[80vh] overflow-auto p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold">{title}</h3>
-          <button className="rounded-lg border px-2 py-1 text-sm" onClick={onClose} aria-label="Close">Close</button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
 function Keypad({ onDigit, onBackspace, onEnter, onSkip }) {
   const keys = [
     ["7", "8", "9"],
@@ -53,9 +37,10 @@ function Keypad({ onDigit, onBackspace, onEnter, onSkip }) {
       ))}
       <button className="rounded-xl border px-4 py-3 text-lg" onClick={onBackspace} aria-label="Backspace">⌫</button>
       <button className="rounded-xl border px-4 py-3 text-lg" onClick={() => onDigit("0")} aria-label="Digit 0">0</button>
-      {/* Bottom row: Enter (blue) and Skip next to it; no Clear/Check buttons */}
-      <button className="rounded-xl border px-4 py-3 text-sm bg-blue-600 text-white hover:bg-blue-700 border-blue-600 col-span-2" onClick={onEnter} aria-label="Enter">Enter</button>
-      <button className="rounded-xl border px-4 py-3 text-sm" onClick={onSkip} aria-label="Skip">Skip</button>
+      <div className="col-span-2 flex gap-2">
+        <button className="flex-1 rounded-xl border px-4 py-3 text-sm bg-blue-600 text-white hover:bg-blue-700 border-blue-600" onClick={onEnter} aria-label="Enter">Enter</button>
+        <button className="flex-1 rounded-xl border px-4 py-3 text-sm" onClick={onSkip} aria-label="Skip">Skip</button>
+      </div>
     </div>
   );
 }
@@ -76,37 +61,6 @@ function isEditableTarget(t) {
   return tag === "INPUT" || tag === "TEXTAREA";
 }
 
-// ------------------------------ IN-APP TESTS --------------------------------
-function runInAppTests() {
-  const out = [];
-  function ok(cond, msg) { out.push((cond ? "✅ " : "❌ ") + msg); if (!cond) throw new Error(msg); }
-  // Test 1: randomInt bounds
-  for (let i = 0; i < 200; i++) {
-    const x = randomInt(2, 12);
-    if (!(x >= 2 && x <= 12)) { ok(false, "randomInt out of bounds"); break; }
-  }
-  ok(true, "randomInt within bounds");
-  // Test 2: subtraction non-negative generation
-  for (let i = 0; i < 200; i++) {
-    let a = randomInt(2, 20), b = randomInt(2, 20);
-    if (a < b) [a, b] = [b, a];
-    if (a - b < 0) { ok(false, "Subtraction produced negative"); break; }
-  }
-  ok(true, "Subtraction non-negative");
-  // Test 3: division generator produces whole numbers
-  for (let i = 0; i < 200; i++) {
-    const b = randomInt(2, 12);
-    const q = randomInt(2, 12);
-    const a = b * q;
-    if (a % b !== 0) { ok(false, "Division not whole number"); break; }
-  }
-  ok(true, "Division generator ensures whole numbers");
-  // Test 4: formatTime
-  ok(formatTime(0) === "00:00", "formatTime(0)");
-  ok(formatTime(65) === "01:05", "formatTime(65)");
-  return out;
-}
-
 // ------------------------------ MATH QUIZ APP -------------------------------
 function MathQuiz() {
   const ops = ["+", "-", "×", "÷"];
@@ -114,17 +68,17 @@ function MathQuiz() {
   const [b, setB] = useState(() => randomInt(2, 12));
   const [op, setOp] = useState("×");
   const [answer, setAnswer] = useState("");
-  const [flash, setFlash] = useState(null); // 'red' | 'green' | null
+  const [flash, setFlash] = useState(null);
   const [maxNumber, setMaxNumber] = useState(12);
 
   const [attempts, setAttempts] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
   const [totalSeconds, setTotalSeconds] = useState(0);
   const [questionSeconds, setQuestionSeconds] = useState(0);
-  const [log, setLog] = useState([]); // {text, given, ok, ts}
+  const [log, setLog] = useState([]);
   const [showLog, setShowLog] = useState(true);
-  const [countedThisQuestion, setCountedThisQuestion] = useState(false); // count only first submission
-  const [selectAllNext, setSelectAllNext] = useState(false); // overwrite on next digit after wrong
+  const [countedThisQuestion, setCountedThisQuestion] = useState(false);
+  const [selectAllNext, setSelectAllNext] = useState(false);
 
   const inputRef = useRef(null);
 
@@ -143,7 +97,7 @@ function MathQuiz() {
     if (currentOp === "÷") {
       newB = randomInt(2, Math.max(2, max));
       const q = randomInt(2, Math.max(2, max));
-      newA = newB * q; // ensures whole-number division
+      newA = newB * q;
     } else {
       newA = randomInt(2, Math.max(2, max));
       newB = randomInt(2, Math.max(2, max));
@@ -174,13 +128,11 @@ function MathQuiz() {
   }
 
   function handleCheck() {
-    if (answer === "") return; // ignore empty
+    if (answer === "") return;
     const isCorrect = Number(answer) === correct;
 
-    // Log every submission (visible), newest first
     setLog((L) => [{ text: `${a} ${op} ${b}`, given: String(answer), ok: isCorrect, ts: Date.now() }, ...L].slice(0, 200));
 
-    // Count only first submission for stats
     if (!countedThisQuestion) {
       setAttempts((n) => n + 1);
       if (isCorrect) setCorrectCount((n) => n + 1);
@@ -194,12 +146,11 @@ function MathQuiz() {
       setFlash("red");
       setTimeout(() => {
         setFlash(null);
-        setSelectAllNext(true); // next digit overwrites
+        setSelectAllNext(true);
       }, 200);
     }
   }
 
-  // Timers
   useEffect(() => {
     const id = setInterval(() => {
       setTotalSeconds((t) => t + 1);
@@ -208,14 +159,12 @@ function MathQuiz() {
     return () => clearInterval(id);
   }, []);
 
-  // Focus when window focuses (keeps keypad-first UX)
   useEffect(() => {
     const onFocus = () => inputRef.current?.focus();
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
-  // Global number / Enter handling
   useEffect(() => {
     function onKeyDown(e) {
       const key = e.key;
@@ -253,14 +202,8 @@ function MathQuiz() {
     setSelectAllNext(false);
   }
 
-  // Test modal state
-  const [showTests, setShowTests] = useState(false);
-  const [testResults, setTestResults] = useState([]);
-  function openTests() { setTestResults(runInAppTests()); setShowTests(true); }
-
   return (
     <Card title="Math Quiz" flash={flash}>
-      {/* Operation picker */}
       <div className="mb-5 text-center">
         <h3 className="font-semibold mb-2">Choose Operation</h3>
         {ops.map((o) => (
@@ -280,7 +223,6 @@ function MathQuiz() {
         </div>
       </div>
 
-      {/* Problem area and keypad */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
         <div>
           <div className="text-2xl mb-3 text-center" aria-live="polite">
@@ -295,7 +237,6 @@ function MathQuiz() {
             {answer === "" ? <span className="text-gray-400">…</span> : answer}
           </div>
 
-          {/* Hidden input to hold focus; no visible Check button */}
           <form onSubmit={(e) => { e.preventDefault(); }} className="flex gap-2 justify-center">
             <input ref={inputRef} type="text" inputMode="none" className="sr-only" tabIndex={-1} aria-hidden="true" />
           </form>
@@ -311,7 +252,6 @@ function MathQuiz() {
         </div>
       </div>
 
-      {/* Stats and log sections */}
       <div className="mt-6">
         <div className="rounded-2xl border bg-white/75 p-4">
           <div className="flex items-center justify-between mb-2">
@@ -344,18 +284,6 @@ function MathQuiz() {
           )}
         </div>
       </div>
-
-      {/* Bottom controls */}
-      <div className="mt-6 flex items-center justify-center">
-        <button className="rounded-xl border px-4 py-2 text-sm" onClick={openTests}>Run In-App Tests</button>
-      </div>
-
-      {/* Tests Modal */}
-      <Modal open={showTests} onClose={() => setShowTests(false)} title="In-App Test Results">
-        <ul className="space-y-1 font-mono text-sm">
-          {testResults.map((r, i) => (<li key={i}>{r}</li>))}
-        </ul>
-      </Modal>
     </Card>
   );
 }
