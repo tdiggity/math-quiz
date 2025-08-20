@@ -127,6 +127,14 @@ function MathQuiz() {
     }
   }
 
+  function resetStats() {
+    setAttempts(0);
+    setCorrectCount(0);
+    setTotalSeconds(0);
+    setQuestionSeconds(0);
+    setLog([]);
+  }
+
   useEffect(() => {
     const id = setInterval(() => {
       setTotalSeconds((t) => t + 1);
@@ -198,7 +206,10 @@ function MathQuiz() {
       {/* Stats and log sections */}
       <div className="mt-6">
         <div className="rounded-2xl border bg-white/75 p-4">
-          <h3 className="font-semibold mb-2">Stats</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold">Stats</h3>
+            <button onClick={resetStats} className="rounded-xl border px-2 py-1 text-xs">Reset Stats</button>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
             <div><div className="text-xs text-gray-600">Time on question</div><div className="text-lg font-medium">{formatTime(questionSeconds)}</div></div>
             <div><div className="text-xs text-gray-600">Total time</div><div className="text-lg font-medium">{formatTime(totalSeconds)}</div></div>
@@ -219,7 +230,7 @@ function MathQuiz() {
             <ul className="space-y-1 max-h-56 overflow-auto text-sm">
               {log.length === 0 && <li className="text-gray-500">No entries yet.</li>}
               {log.map((h, idx) => (
-                <li key={h.ts + '-' + idx} className={h.ok ? "text-green-700" : "text-red-700"}>{h.ok ? "✅" : "❌"} {h.text} → {h.given} (correct {h.correct})</li>
+                <li key={h.ts + '-' + idx} className={h.ok ? "text-green-700" : "text-red-700"}>{h.ok ? "✅" : "❌"} {h.text} → {h.given}</li>
               ))}
             </ul>
           )}
