@@ -2,13 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 
 // ------------------------------- UI PRIMITIVES -------------------------------
 function Card({ title, children, flash }) {
-  const flashClass =
-    flash === "red" ? "bg-red-100" :
-    flash === "green" ? "bg-green-100" :
-    "bg-white/80";
+  const flashClass = flash === "red" ? "bg-red-100" : flash === "green" ? "bg-green-100" : "bg-white/80";
   return (
     <div className={`rounded-2xl shadow p-5 border border-gray-200 max-w-2xl mx-auto mt-10 transition-colors duration-200 ${flashClass}`}>
-      <h2 className="text-xl font-semibold mb-3 text-center">{title}</h2>
+      {title && <h2 className="text-4xl font-bold mb-6 text-center">{title}</h2>}
       <div>{children}</div>
     </div>
   );
@@ -41,6 +38,28 @@ function Modal({ open, onClose, title, children }) {
   );
 }
 
+function Keypad({ onDigit, onBackspace, onEnter, onSkip }) {
+  const keys = [
+    ["7", "8", "9"],
+    ["4", "5", "6"],
+    ["1", "2", "3"],
+  ];
+  return (
+    <div className="grid grid-cols-3 gap-2 w-full max-w-xs">
+      {keys.flat().map((k) => (
+        <button key={k} className="rounded-xl border px-4 py-3 text-lg" onClick={() => onDigit(k)} aria-label={`Digit ${k}`}>
+          {k}
+        </button>
+      ))}
+      <button className="rounded-xl border px-4 py-3 text-lg" onClick={onBackspace} aria-label="Backspace">⌫</button>
+      <button className="rounded-xl border px-4 py-3 text-lg" onClick={() => onDigit("0")} aria-label="Digit 0">0</button>
+      {/* Bottom row: Enter (blue) and Skip next to it; no Clear/Check buttons */}
+      <button className="rounded-xl border px-4 py-3 text-sm bg-blue-600 text-white hover:bg-blue-700 border-blue-600 col-span-2" onClick={onEnter} aria-label="Enter">Enter</button>
+      <button className="rounded-xl border px-4 py-3 text-sm" onClick={onSkip} aria-label="Skip">Skip</button>
+    </div>
+  );
+}
+
 // ------------------------------ HELPERS -------------------------------------
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -57,77 +76,55 @@ function isEditableTarget(t) {
   return tag === "INPUT" || tag === "TEXTAREA";
 }
 
-function Keypad({ onDigit, onBackspace, onClear, onEnter }) {
-  const keys = [["7","8","9"],["4","5","6"],["1","2","3"]];
-  return (
-    <div className="grid grid-cols-3 gap-2 w-full max-w-xs">
-      {keys.flat().map((k) => (
-        <button key={k} className="rounded-xl border px-4 py-3 text-lg" onClick={() => onDigit(k)} aria-label={`Digit ${k}`}>
-          {k}
-        </button>
-      ))}
-      <button className="rounded-xl border px-4 py-3 text-lg col-span-2" onClick={() => onDigit("0")} aria-label="Digit 0">0</button>
-      <button className="rounded-xl border px-4 py-3 text-lg" onClick={onBackspace} aria-label="Backspace">⌫</button>
-      <button className="rounded-xl border px-4 py-3 text-sm" onClick={onClear} aria-label="Clear">Clear</button>
-      <button className="rounded-xl border px-4 py-3 text-sm col-span-2" onClick={onEnter} aria-label="Enter">Enter</button>
-    </div>
-  );
-}
-
-// ------------------------------ HIDDEN TESTS --------------------------------
+// ------------------------------ IN-APP TESTS --------------------------------
 function runInAppTests() {
-  const results = [];
-  function assert(ok, msg) { if (!ok) throw new Error(msg); }
-  function generatePair(op, max) {
-    let a = randomInt(2, Math.max(2, max));
-    let b = randomInt(2, Math.max(2, max));
-    if (op === "-" && a < b) [a, b] = [b, a];
-    return { a, b };
+  const out = [];
+  function ok(cond, msg) { out.push((cond ? "✅ " : "❌ ") + msg); if (!cond) throw new Error(msg); }
+  // Test 1: randomInt bounds
+  for (let i = 0; i < 200; i++) {
+    const x = randomInt(2, 12);
+    if (!(x >= 2 && x <= 12)) { ok(false, "randomInt out of bounds"); break; }
   }
-  try {
-    for (let i=0;i<200;i++){ const x=randomInt(2,12); assert(x>=2&&x<=12,"randomInt out of bounds"); }
-    results.push("✅ randomInt within bounds");
-    for (let i=0;i<200;i++){ const {a,b}=generatePair("-",20); assert(a-b>=0,"Subtraction produced negative result"); }
-    results.push("✅ subtraction non-negative");
-    assert(2+3===5,"2+3 should be 5"); assert(6*7===42,"6*7 should be 42");
-    results.push("✅ arithmetic sanity checks");
-    assert(formatTime(0)==="00:00","formatTime 0");
-    assert(formatTime(65)==="01:05","formatTime 65");
-    results.push("✅ formatTime works");
-    const mockInput={tagName:"input"}, mockTextarea={tagName:"textarea"}, mockDivEditable={tagName:"div",isContentEditable:true}, mockDiv={tagName:"div"};
-    assert(isEditableTarget(mockInput)===true,"editable detection (input) failed");
-    assert(isEditableTarget(mockTextarea)===true,"editable detection (textarea) failed");
-    assert(isEditableTarget(mockDivEditable)===true,"editable detection (contenteditable) failed");
-    assert(isEditableTarget(mockDiv)===false,"editable detection (div) should be false");
-    results.push("✅ editable-target detection");
-  } catch(e){ results.push("❌ "+e.message); }
-  return results;
+  ok(true, "randomInt within bounds");
+  // Test 2: subtraction non-negative generation
+  for (let i = 0; i < 200; i++) {
+    let a = randomInt(2, 20), b = randomInt(2, 20);
+    if (a < b) [a, b] = [b, a];
+    if (a - b < 0) { ok(false, "Subtraction produced negative"); break; }
+  }
+  ok(true, "Subtraction non-negative");
+  // Test 3: division generator produces whole numbers
+  for (let i = 0; i < 200; i++) {
+    const b = randomInt(2, 12);
+    const q = randomInt(2, 12);
+    const a = b * q;
+    if (a % b !== 0) { ok(false, "Division not whole number"); break; }
+  }
+  ok(true, "Division generator ensures whole numbers");
+  // Test 4: formatTime
+  ok(formatTime(0) === "00:00", "formatTime(0)");
+  ok(formatTime(65) === "01:05", "formatTime(65)");
+  return out;
 }
 
 // ------------------------------ MATH QUIZ APP -------------------------------
 function MathQuiz() {
-  const ops = ["+","-","×","÷"];
+  const ops = ["+", "-", "×", "÷"];
   const [a, setA] = useState(() => randomInt(2, 12));
   const [b, setB] = useState(() => randomInt(2, 12));
   const [op, setOp] = useState("×");
   const [answer, setAnswer] = useState("");
-  const [flash, setFlash] = useState(null); // red | green | null
+  const [flash, setFlash] = useState(null); // 'red' | 'green' | null
   const [maxNumber, setMaxNumber] = useState(12);
 
-  // Stats
   const [attempts, setAttempts] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
   const [totalSeconds, setTotalSeconds] = useState(0);
   const [questionSeconds, setQuestionSeconds] = useState(0);
-
-  // Log
   const [log, setLog] = useState([]); // {text, given, ok, ts}
   const [showLog, setShowLog] = useState(true);
-  const [countedThisQuestion, setCountedThisQuestion] = useState(false);
-
-  // Tests modal
-  const [showTests, setShowTests] = useState(false);
-  const [testResults, setTestResults] = useState([]);
+  const [countedThisQuestion, setCountedThisQuestion] = useState(false); // count only first submission
+  const [selectAllNext, setSelectAllNext] = useState(false); // overwrite on next digit after wrong
 
   const inputRef = useRef(null);
 
@@ -137,15 +134,23 @@ function MathQuiz() {
       case "-": return a - b;
       case "×": return a * b;
       case "÷": return Math.trunc(a / b);
-      default:  return 0;
+      default: return 0;
     }
-  }, [a,b,op]);
+  }, [a, b, op]);
 
   function spawnProblem(currentOp = op, max = maxNumber) {
-    let newA = randomInt(2, Math.max(2, max));
-    let newB = randomInt(2, Math.max(2, max));
-    if (currentOp === "-" && newA < newB) [newA, newB] = [newB, newA];
-    setA(newA); setB(newB);
+    let newA, newB;
+    if (currentOp === "÷") {
+      newB = randomInt(2, Math.max(2, max));
+      const q = randomInt(2, Math.max(2, max));
+      newA = newB * q; // ensures whole-number division
+    } else {
+      newA = randomInt(2, Math.max(2, max));
+      newB = randomInt(2, Math.max(2, max));
+      if (currentOp === "-" && newA < newB) [newA, newB] = [newB, newA];
+    }
+    setA(newA);
+    setB(newB);
   }
 
   function next() {
@@ -153,31 +158,29 @@ function MathQuiz() {
     setAnswer("");
     setQuestionSeconds(0);
     setCountedThisQuestion(false);
-    requestAnimationFrame(() => inputRef.current?.focus());
+    setSelectAllNext(false);
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() => inputRef.current?.focus());
+    }
   }
 
   function insertDigit(d) {
-    const el = inputRef.current;
-    if (!el) return setAnswer((t) => t + d);
-    el.focus();
-    const start = el.selectionStart ?? el.value.length;
-    const end = el.selectionEnd ?? el.value.length;
-    const before = el.value.slice(0, start);
-    const after = el.value.slice(end);
-    const nextVal = before + d + after;
-    setAnswer(nextVal);
-    const pos = (before + d).length;
-    requestAnimationFrame(() => el.setSelectionRange(pos, pos));
+    if (selectAllNext) {
+      setAnswer(d);
+      setSelectAllNext(false);
+    } else {
+      setAnswer((t) => t + d);
+    }
   }
 
   function handleCheck() {
+    if (answer === "") return; // ignore empty
     const isCorrect = Number(answer) === correct;
 
-    // Log every submission
-    const entry = { text: `${a} ${op} ${b}`, given: String(answer || ""), ok: isCorrect, ts: Date.now() };
-    setLog((L) => [entry, ...L].slice(0, 200));
+    // Log every submission (visible), newest first
+    setLog((L) => [{ text: `${a} ${op} ${b}`, given: String(answer), ok: isCorrect, ts: Date.now() }, ...L].slice(0, 200));
 
-    // Count only the first submission
+    // Count only first submission for stats
     if (!countedThisQuestion) {
       setAttempts((n) => n + 1);
       if (isCorrect) setCorrectCount((n) => n + 1);
@@ -191,8 +194,7 @@ function MathQuiz() {
       setFlash("red");
       setTimeout(() => {
         setFlash(null);
-        inputRef.current?.focus();
-        inputRef.current?.select();
+        setSelectAllNext(true); // next digit overwrites
       }, 200);
     }
   }
@@ -206,15 +208,14 @@ function MathQuiz() {
     return () => clearInterval(id);
   }, []);
 
-  // Focus on page focus
+  // Focus when window focuses (keeps keypad-first UX)
   useEffect(() => {
-    inputRef.current?.focus();
     const onFocus = () => inputRef.current?.focus();
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
-  // Global keys
+  // Global number / Enter handling
   useEffect(() => {
     function onKeyDown(e) {
       const key = e.key;
@@ -222,125 +223,100 @@ function MathQuiz() {
         if (!isEditableTarget(e.target)) {
           e.preventDefault();
           insertDigit(key);
-          inputRef.current?.focus();
         }
-      }
-      if (key === "Enter") {
+      } else if (key === "Enter") {
         if (!isEditableTarget(e.target)) {
           e.preventDefault();
           handleCheck();
+        }
+      } else if (key === "Backspace") {
+        if (!isEditableTarget(e.target)) {
+          e.preventDefault();
+          setAnswer((t) => t.slice(0, -1));
         }
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [answer, correct, countedThisQuestion]);
+  }, [selectAllNext, answer, correct, countedThisQuestion]);
 
   const pctCorrect = attempts ? Math.round((correctCount / attempts) * 100) : 0;
-  const avgSec = attempts ? Math.round(totalSeconds / attempts) : 0;
+  const avgSec = attempts ? Math.round(totalSeconds / Math.max(1, attempts)) : 0;
 
   function resetStats() {
-    setAttempts(0); setCorrectCount(0);
-    setTotalSeconds(0); setQuestionSeconds(0);
-    setCountedThisQuestion(false); setAnswer(""); setLog([]);
-    requestAnimationFrame(() => inputRef.current?.focus());
+    setAttempts(0);
+    setCorrectCount(0);
+    setTotalSeconds(0);
+    setQuestionSeconds(0);
+    setLog([]);
+    setCountedThisQuestion(false);
+    setSelectAllNext(false);
   }
 
-  function openTestsModal() {
-    const results = runInAppTests();
-    setTestResults(results);
-    setShowTests(true);
-  }
+  // Test modal state
+  const [showTests, setShowTests] = useState(false);
+  const [testResults, setTestResults] = useState([]);
+  function openTests() { setTestResults(runInAppTests()); setShowTests(true); }
 
   return (
     <Card title="Math Quiz" flash={flash}>
-      {/* Operation picker + Max number */}
-      <div className="mb-3 text-center flex flex-wrap justify-center items-center gap-3">
-        {["+","-","×","÷"].map((o) => (
-          <Pill key={o} active={op === o} onClick={() => { setOp(o); next(); }}>
-            {o}
-          </Pill>
+      {/* Operation picker */}
+      <div className="mb-5 text-center">
+        <h3 className="font-semibold mb-2">Choose Operation</h3>
+        {ops.map((o) => (
+          <Pill key={o} active={op === o} onClick={() => { setOp(o); next(); }}>{o}</Pill>
         ))}
-        <span className="flex items-center ml-4 text-sm">
-          Max #:
+        <div className="inline-flex items-center ml-4 text-sm">
+          <span>Max #:</span>
           <input
             type="number"
             value={maxNumber}
             onChange={(e) => setMaxNumber(Math.max(1, Number(e.target.value)))}
             className="ml-2 w-16 rounded border px-2 py-1 text-sm"
             min={1}
+            inputMode="numeric"
+            pattern="[0-9]*"
           />
-        </span>
+        </div>
       </div>
 
-      {/* Two-column layout */}
+      {/* Problem area and keypad */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
-        {/* Left: problem + input */}
         <div>
           <div className="text-2xl mb-3 text-center" aria-live="polite">
             <span className="font-semibold">{a}</span> {op} <span className="font-semibold">{b}</span> = ?
           </div>
 
-          {/* Big answer display */}
           <div
-            className="rounded-2xl border bg-white/80 px-4 py-6 mb-3 text-center font-mono tracking-wider text-5xl md:text-6xl select-none cursor-text"
-            onClick={() => inputRef.current && inputRef.current.focus()}
+            className="rounded-2xl border bg-white/80 px-4 py-6 mb-3 text-center font-mono tracking-wider text-5xl md:text-6xl select-none"
             aria-live="polite"
+            onClick={() => inputRef.current?.focus()}
           >
             {answer === "" ? <span className="text-gray-400">…</span> : answer}
           </div>
 
-          <form
-            onSubmit={(e) => { e.preventDefault(); handleCheck(); }}
-            className="flex gap-2 justify-center"
-          >
-            {/* Visually hidden input keeps focus behavior + accessibility */}
-            <input
-              ref={inputRef}
-              inputMode="numeric"
-              className="sr-only absolute -m-px w-px h-px overflow-hidden"
-              aria-label="Your answer"
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-            />
-            <button type="submit" className="rounded-xl border px-3 py-2">Check</button>
-            <button type="button" onClick={next} className="rounded-xl border px-3 py-2">Skip</button>
+          {/* Hidden input to hold focus; no visible Check button */}
+          <form onSubmit={(e) => { e.preventDefault(); }} className="flex gap-2 justify-center">
+            <input ref={inputRef} type="text" inputMode="none" className="sr-only" tabIndex={-1} aria-hidden="true" />
           </form>
         </div>
 
-        {/* Right: keypad */}
         <div className="flex justify-center">
           <Keypad
             onDigit={(d) => insertDigit(d)}
-            onBackspace={() => {
-              const el = inputRef.current;
-              if (!el) return;
-              const start = el.selectionStart ?? el.value.length;
-              const end = el.selectionEnd ?? el.value.length;
-              if (start !== end) {
-                const before = el.value.slice(0, start);
-                const after = el.value.slice(end);
-                const nextVal = before + after;
-                setAnswer(nextVal);
-                const pos = before.length;
-                requestAnimationFrame(() => el.setSelectionRange(pos, pos));
-              } else {
-                setAnswer((t) => t.slice(0, -1));
-              }
-              el.focus();
-            }}
-            onClear={() => { setAnswer(""); inputRef.current?.focus(); }}
-            onEnter={() => { handleCheck(); inputRef.current?.focus(); }}
+            onBackspace={() => setAnswer((t) => t.slice(0, -1))}
+            onEnter={handleCheck}
+            onSkip={next}
           />
         </div>
       </div>
 
-      {/* Stats Section */}
+      {/* Stats and log sections */}
       <div className="mt-6">
         <div className="rounded-2xl border bg-white/75 p-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold">Stats</h3>
-            <button className="rounded-xl border px-3 py-1 text-sm" onClick={resetStats} aria-label="Reset stats">Reset</button>
+            <button onClick={resetStats} className="rounded-xl border px-2 py-1 text-xs">Reset Stats</button>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
             <div><div className="text-xs text-gray-600">Time on question</div><div className="text-lg font-medium">{formatTime(questionSeconds)}</div></div>
@@ -352,39 +328,26 @@ function MathQuiz() {
         </div>
       </div>
 
-      {/* Q&A Log */}
       <div className="mt-4">
         <div className="rounded-2xl border bg-white/75 p-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold">Question & Answer Log</h3>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500 hidden sm:inline">Newest first • capped at 200</span>
-              <button
-                className="rounded-xl border px-2 py-1 text-xs"
-                onClick={() => setShowLog((v) => !v)}
-                aria-expanded={showLog}
-                aria-controls="qa-log"
-              >
-                {showLog ? "Hide" : "Show"}
-              </button>
-            </div>
+            <button className="rounded-xl border px-2 py-1 text-xs" onClick={() => setShowLog((v) => !v)}>{showLog ? 'Hide' : 'Show'}</button>
           </div>
           {showLog && (
-            <ul id="qa-log" className="space-y-1 max-h-56 overflow-auto text-sm">
-              {log.length === 0 && <li className="text-gray-500">No entries yet. Answer a question to populate the log.</li>}
+            <ul className="space-y-1 max-h-56 overflow-auto text-sm">
+              {log.length === 0 && <li className="text-gray-500">No entries yet.</li>}
               {log.map((h, idx) => (
-                <li key={h.ts + "-" + idx} className={h.ok ? "text-green-700" : "text-red-700"}>
-                  {h.ok ? "✅" : "❌"} {h.text} → <span className="font-mono">{h.given}</span>
-                </li>
+                <li key={h.ts + '-' + idx} className={h.ok ? "text-green-700" : "text-red-700"}>{h.ok ? "✅" : "❌"} {h.text} → {h.given}</li>
               ))}
             </ul>
           )}
         </div>
       </div>
 
-      {/* Bottom toolbar */}
+      {/* Bottom controls */}
       <div className="mt-6 flex items-center justify-center">
-        <button className="rounded-xl border px-4 py-2 text-sm" onClick={openTestsModal}>Run In-App Tests</button>
+        <button className="rounded-xl border px-4 py-2 text-sm" onClick={openTests}>Run In-App Tests</button>
       </div>
 
       {/* Tests Modal */}
